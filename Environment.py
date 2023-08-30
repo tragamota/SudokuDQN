@@ -33,7 +33,11 @@ class SudokuEnvironment(gym.Env):
         self.sudoku = self.puzzles[self.select_index]
         self.solved = self.solutions[self.select_index]
 
-        return self.sudoku, self.loc
+        observation = copy(self.sudoku)
+        observation /= 9
+        observation -= 0.5
+
+        return observation, self.loc
 
     def step(self, action):
         reward = 0
@@ -76,6 +80,11 @@ class SudokuEnvironment(gym.Env):
             done = True
 
         self.sudoku = next_observation
+
+        next_observation = copy(self.sudoku)
+
+        next_observation /= 9
+        next_observation -= 0.5
 
         return (next_observation, self.loc), reward, done, {}
 

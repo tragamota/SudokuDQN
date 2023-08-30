@@ -26,11 +26,11 @@ if __name__ == '__main__':
     device = select_device()
     parameters = Parameters()
 
-    # train_X, test_X, train_Y, test_Y = preprocess_sudoku('./data/sudoku.csv', n=100_000)
+    train_X, test_X, train_Y, test_Y = preprocess_sudoku('./data/sudoku.csv', n=100_000)
 
-    replay_buffer = ReplayMemory(25000)
+    replay_buffer = ReplayMemory(500000)
 
-    env = gymnasium.make("CartPole-v1")
+    env = SudokuEnvironment(train_X, train_Y)
     agent = SudokuAgent(parameters, replay_buffer, device)
 
     steps = 0
@@ -40,14 +40,11 @@ if __name__ == '__main__':
     score_windows = deque(maxlen=100)
 
     for episode in range(parameters.EPISODES):
-        state, _ = env.reset()
+        state = env.reset()
         done = False
         for count in range(parameters.EPISODE_DUR):
-            action = agent.act(state, env.action_space, eps)
-            next_state, reward, terminated, truncated, info = env.step(action)
-
-            if terminated or truncated:
-                done = True
+            action = agent.act(*state, env.action_space, eps)
+            next_state, reward, done, info = env.step(action)
 
             replay_buffer.push(state, action, [reward], next_state, done)
 

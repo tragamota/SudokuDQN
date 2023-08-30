@@ -24,19 +24,17 @@ class SudokuAgent:
 
         self.steps = 0
 
-    def act(self, obs, action_space, eps=0):
+    def act(self, sudoku, loc, action_space, eps=0):
         # sudoku /= 9
         # sudoku -= 0.5
 
-        # state = torch.from_numpy(sudoku).float().unsqueeze(0).unsqueeze(0).to(self.device)
-        # loc = torch.from_numpy(loc).float().unsqueeze(0).to(self.device)
-
-        obs = torch.tensor(obs, device=self.device)
+        state = torch.from_numpy(sudoku).float().unsqueeze(0).unsqueeze(0).to(self.device)
+        loc = torch.from_numpy(loc).float().unsqueeze(0).to(self.device)
 
         self.local_policy.eval()
 
         with torch.no_grad():
-            q_values = self.local_policy(obs)
+            q_values = self.local_policy(state, loc)
 
         self.local_policy.train()
 
@@ -58,11 +56,11 @@ class SudokuAgent:
         self.local_policy.train()
         self.target_policy.eval()
 
-        predicted_targets = self.local_policy(state)
+        predicted_targets = self.local_policy(*state)
         predicted_targets = predicted_targets.gather(1, actions)
 
         with torch.no_grad():
-            labels_next = self.target_policy(next_state).detach().max(1)[0].unsqueeze(1)
+            labels_next = self.target_policy(*next_state).detach().max(1)[0].unsqueeze(1)
 
         dones = (1 - dones).unsqueeze(1)
         target_error = rewards + (self.parameters.GAMMA * labels_next * dones)
@@ -77,15 +75,15 @@ class SudokuAgent:
 
     def unpack_samples(self, batch):
 
-        # state = (torch.from_numpy([item[0] for item in batch.state]).float().to(self.device),
-        #          torch.from_numpy([item[1] for item in batch.state]).float().to(self.device))
-        state = torch.from_numpy(np.array(batch.state)).float().to(self.device)
+        state = (torch.from_numpy(np.array([item[0] for item in batch.state])).unsqueeze(1).float().to(self.device),
+                 torch.from_numpy(np.array([item[1] for item in batch.state])).float().to(self.device))
+        # state = torch.from_numpy(np.array(batch.state)).float().to(self.device)
         actions = torch.from_numpy(np.array(batch.action)).long().to(self.device)
         rewards = torch.from_numpy(np.array(batch.reward)).float().to(self.device)
 
-        next_state = torch.from_numpy(np.array(batch.next_state)).float().to(self.device)
-        # next_state = (torch.from_numpy([item[0] for item in batch.next_state]).float().to(self.device),
-        #               torch.from_numpy([item[1] for item in batch.next_state]).float().to(self.device))
+        # next_state = torch.from_numpy(np.array(batch.next_state)).float().to(self.device)
+        next_state = (torch.from_numpy(np.array([item[0] for item in batch.next_state])).unsqueeze(1).float().to(self.device),
+                      torch.from_numpy(np.array([item[1] for item in batch.next_state])).float().to(self.device))
         dones = torch.from_numpy(np.array(batch.done).astype(np.uint8)).float().to(self.device)
 
         return state, actions, rewards, next_state, dones
