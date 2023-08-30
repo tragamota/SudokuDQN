@@ -1,8 +1,8 @@
 from collections import deque, namedtuple
-from random import random
+import random
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'action', 'reward', 'next_state', 'done'))
 
 
 class ReplayMemory(object):
@@ -10,7 +10,6 @@ class ReplayMemory(object):
         self.memory = deque([], maxlen=capacity)
 
     def push(self, *args):
-        """Save a transition"""
         self.memory.append(Transition(*args))
 
     def sample(self, batch_size):

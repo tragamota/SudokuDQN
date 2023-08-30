@@ -1,4 +1,5 @@
 import random
+from copy import copy
 
 import gymnasium as gym
 import numpy as np
@@ -14,51 +15,76 @@ class SudokuEnvironment(gym.Env):
         self.sudoku = None
         self.solved = None
 
-        assert(len(self.puzzles) == len(self.solutions))
+        self.loc = np.array([0, 0], dtype=int)
+        self.select_index = random.randint(0, len(self.puzzles))
 
-        self.observation_space = spaces.MultiDiscrete([10] * (9 * 9))
-        self.action_space = spaces.Tuple((
-            spaces.MultiDiscrete([9, 9]),
-            spaces.Discrete(9)
+        assert (len(self.puzzles) == len(self.solutions))
+
+        self.observation_space = spaces.Tuple((
+            spaces.MultiDiscrete([10] * (9 * 9)),
+            spaces.Discrete(2)
         ))
+        self.action_space = spaces.Discrete(13)
 
     def reset(self):
-        select_index = random.randint(0, len(self.puzzles))
+        self.loc = np.array([0, 0], dtype=int)
 
-        self.fixed = self.puzzles[select_index]
-        self.sudoku = self.puzzles[select_index]
-        self.solved = self.solutions[select_index]
+        self.fixed = self.puzzles[self.select_index]
+        self.sudoku = self.puzzles[self.select_index]
+        self.solved = self.solutions[self.select_index]
 
-        return self.sudoku
+        return self.sudoku, self.loc
 
     def step(self, action):
-        row, col, value = action
-
+        reward = 0
         next_observation = self.sudoku
         done = False
 
-        if not self.is_valid_action(row, col, value):
-            return next_observation, -100, done, {}
+        new_loc = copy(self.loc)
 
-        if self.fixed[row, col] != 0:
-            return next_observation, -50, done, {}
+        if action < 4:
+            if action == 0:
+                new_loc[1] += 1
+            elif action == 1:
+                new_loc[0] -= 1
+            elif action == 2:
+                new_loc[0] += 1
+            else:
+                new_loc[1] -= 1
 
-        next_observation[row, col] = value
-        value_solution_dist = self.solved[row, col] - value
-        reward = 20 - value_solution_dist
+            if not self.is_valid_action(new_loc):
+                return (next_observation, self.loc), -0.1, done, {}
+            else:
+                self.loc = new_loc
+
+                return (next_observation, self.loc), 0, done, {}
+
+        if self.fixed[self.loc[0], self.loc[1]] != 0:
+            return (next_observation, self.loc), -2, done, {}
+
+        value = action - 3
+
+        next_observation[self.loc[0], self.loc[1]] = value
+
+        if self.solved[self.loc[0], self.loc[1]] == value:
+            reward = 1
+        else:
+            reward = -1
 
         if self.is_solved():
-            reward = 500
+            reward = 100
             done = True
 
-        return next_observation, reward, done, {}
+        self.sudoku = next_observation
+
+        return (next_observation, self.loc), reward, done, {}
 
     @staticmethod
-    def is_valid_action(row, col, value):
-        if 0 <= row < 9 and 0 <= col < 9 and 0 <= value < 9:
-            return False
+    def is_valid_action(loc):
+        if 0 <= loc[0] < 9 and 0 <= loc[1] < 9:
+            return True
 
-        return True
+        return False
 
     def is_solved(self):
         return np.array_equal(self.sudoku, self.solved)
